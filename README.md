@@ -150,3 +150,7 @@ or set `scenes_dir` in `configs/default.yaml` to your scenes folder.
 **Out of memory**: Reduce `render.n_views_per_elevation` from 6 to 4 in config.
 
 **SAM2 import error**: Run `pip install -e .` inside `third_party/sam2/`.
+
+## Project report
+
+[Read the project report (PDF)](reports/Multiview_3D_Gaussian_Segmentation_Report.pdf)
