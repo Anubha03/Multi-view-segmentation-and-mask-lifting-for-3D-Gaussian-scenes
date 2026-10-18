@@ -1,0 +1,89 @@
+# =============================================================================
+#  configs/default.yaml
+#  Training-Free Multi-View Semantic Segmentation of 3DGS Scenes
+# =============================================================================
+
+device: "mps"        # Apple Silicon GPU. Use "cuda" on a Linux GPU machine.
+dtype: "float32"
+
+scenes_dir: "scenes"
+outputs_dir: "outputs"
+
+render:
+  image_width:  800
+  image_height: 600
+  background: [1.0, 1.0, 1.0]
+
+  # Multi-elevation orbit cameras for lifting.
+  # Three elevation rings give complete top/side/bottom coverage.
+  # Each ring uses n_views_per_elevation cameras evenly spaced in azimuth.
+  n_views_per_elevation: 6          # 6 x 3 rings = 18 lift views total
+  elevation_angles: [25, 5, -10]    # degrees; negative = camera looks up
+
+  # Output GIF uses a single-elevation ring
+  gif_n_frames: 24
+  gif_elevation_deg: 20
+  gif_radius_scale: 1.0             # multiplied with auto-detected orbit radius
+
+segmentation:
+  backbone: "grounded_sam2"
+  grounding_dino:
+    model_id: "IDEA-Research/grounding-dino-tiny"   # loaded from HuggingFace hub
+    box_threshold:  0.28
+    text_threshold: 0.25
+  sam2:
+    model_id: "facebook/sam2-hiera-small"           # loaded from HuggingFace hub
+
+lifting:
+  # Depth-aware filter: Gaussian must be within this fraction of the
+  # rendered surface depth. Eliminates occluded/interior Gaussians.
+  depth_rel_tol: 0.22
+
+  # Mask erosion applied before lifting to remove boundary-ambiguous pixels.
+  mask_erode_radius: 4              # pixels
+
+  # Radius-aware voting: award partial credit if the Gaussian's projected
+  # circle overlaps the mask even when its centre is just outside.
+  radius_weight: true
+
+  # Visibility normalisation: divide score by number of views the Gaussian
+  # was in-frustum for, to avoid bias toward centrally-placed Gaussians.
+  normalise: true
+
+  # Otsu thresholding finds the natural foreground/background split.
+  # Fallback percentiles are used if Otsu gives too many or too few.
+  otsu_fallback_high_pctile: 75     # used if Otsu selects > 30% of Gaussians
+  otsu_fallback_low_pctile:  50     # used if Otsu selects < 300 Gaussians
+
+  # Color consistency post-filter: removes Gaussians whose RGB is far
+  # from the median color of the selected segment.
+  color_sigma:
+    bonsai:  0.22
+    bicycle: 0.32
+    default: 0.28
+
+  # Per-scene spatial filters (Y-down convention: physically high = small Y)
+  # These constrain the segment to the upper part of the scene.
+  spatial:
+    bonsai:
+      y_pctile: 55          # keep Gaussians with Y below the 55th percentile of selected
+      y_max_clamp: 0.9      # hard ceiling
+      y_min_clamp: -0.3     # hard floor
+      xz_radius: 1.0        # max XZ distance from scene center (trunk + canopy)
+    bicycle:
+      y_pctile: 45
+      y_max_clamp: 0.5
+      y_min_clamp: -0.5
+      brightness_min: 0.28  # bike is silver/white; bench is black
+
+editing:
+  recolor_rgb: [1.0, 0.10, 0.05]   # bright red (default)
+
+evaluation:
+  clip_model: "ViT-B/32"
+  num_eval_views: 4
+
+orbit:
+  num_frames: 24
+  fps: 10
+  elevation_deg: 20.0
